@@ -31,12 +31,28 @@ void enable_raw_mode(void) {
 }
 
 unsigned char *displayBuff, *procBuff;
+int w, h;
+
+int getNeighbors(int x, int y) {
+    int n = 0;
+    for (int dy = -1; dy < 2; dy++) {
+        if ((y + dy) > h - 1 || (y + dy) < 0) continue;
+        for (int dx = -1; dx < 2; dx++) {
+            if (!(dx || dy)) continue;
+            if ((x + dx) > w - 1 || (x + dx) < 0) continue;
+            int j = (y + dy) * w + (x + dx);
+            n += displayBuff[j / 8] & (1 << (j % 8)) ? 1 : 0;
+        }
+    }
+    return n;
+}
 
 struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
 
 int main(int argc, char *argv[]) {
 
-    int w = 10, h = 10, bSize = (int)ceil(((double) w * h) / 8);
+    w = 10, h = 10;
+    int bSize = (int)ceil(((double) w * h) / 8);
 
     displayBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     procBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
@@ -49,43 +65,36 @@ int main(int argc, char *argv[]) {
 
     write(1, "\x1b[?1049h\x1b[3J\x1b[2J\x1b[H\x1b[?25lKiernan's Game of C\r\n┌", 49);
 
-    for (int i = 0; i < w * 2; i++) {
-        write(1, "─", 3);
-    }
+    for (int i = 0; i < w; i++) write(1, "─", 3);
     write(1, "┐\r\n", 5);
-
-    for (int i = 0; i < h; i++) {
+    for (int i = 0; i < (h / 2); i++) {
         write(1, "│", 3);
-        for (int j = 0; j < w * 2; j++) write(1, " ", 1);
+        for (int j = 0; j < w; j++) write(1, " ", 1);
         write(1, "│\r\n", 5);
     }
     write(1, "└", 3);
-    for (int i = 0; i < w * 2; i++) {
-        write(1, "─", 3);
-    }
+    for (int i = 0; i < w; i++) write(1, "─", 3);
     write(1, "┘\x1b[3;2f", 9);
 
     while (1) {
         memcpy(displayBuff, procBuff, bSize);
-        for (int y = 0; y < h; y++) {
+        for (int y = 0; y < (h / 2); y++) {
             for (int x = 0; x < w; x++) {
-                int i = y*w+x;
-                if (displayBuff[i / 8] & (1 << (i % 8))) {
-                    write(1, "██", 6);
+                int i = y*2*w+x;
+                int a = ((displayBuff[i / 8] & (1 << (i % 8))) ? 2 : 0) + ((displayBuff[(i + w) / 8] & (1 << ((i + w) % 8))) ? 1 : 0);
+                if (a == 3) {
+                    write(1, "█", 3);
+                } else if (a == 2) {
+                    write(1, "▀", 3);
+                } else if (a) {
+                    write(1, "▄", 3);
                 } else {
-                    write(1, "  ", 2);
+                    write(1, " ", 1);
                 }
-                int n = 0;
-                for (int dy = -1; dy < 2; dy++) {
-                    if ((y + dy) > h - 1 || (y + dy) < 0) continue;
-                    for (int dx = -1; dx < 2; dx++) {
-                        if (!(dx || dy)) continue;
-                        if ((x + dx) > w - 1 || (x + dx) < 0) continue;
-                        int j = (y + dy) * w + (x + dx);
-                        n += displayBuff[j / 8] & (1 << (j % 8)) ? 1 : 0;
-                    }
-                }
-                if ((procBuff[i / 8] & (1 << (i % 8)) && (n < 2 || n > 3)) || (!(procBuff[i / 8] & (1 << (i % 8))) && n == 3)) procBuff[i / 8] ^= (1 << (i % 8));
+                int n = getNeighbors(x, y*2);
+                if ((a & 1 && (n < 2 || n > 3)) || (!(a & 1) && n == 3)) procBuff[i / 8] ^= (1 << (i % 8));
+                n = getNeighbors(x, y*2+1);
+                if ((a & 2 && (n < 2 || n > 3)) || (!(a & 2) && n == 3)) procBuff[(i+w) / 8] ^= (1 << ((i+w) % 8));
             }
             write(1, "\x1b[1B\x1b[2G", 8);
         }
