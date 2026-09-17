@@ -1,8 +1,10 @@
 [ ! -d "bin" ] && mkdir bin
 
-as main.S -o bin/main.o -g
+#as main.S -o bin/main.o -g
 
-ld bin/main.o -o bin/main
+#ld bin/main.o -o bin/main
+
+gcc main.c -o bin/main -g
 
 chmod +x ./bin/main
 
