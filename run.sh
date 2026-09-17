@@ -4,7 +4,7 @@
 
 #ld bin/main.o -o bin/main
 
-gcc main.c -o bin/main -g
+gcc main.c -o bin/main -g -lm
 
 chmod +x ./bin/main
 
