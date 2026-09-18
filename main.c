@@ -49,17 +49,25 @@ int getNeighbors(int x, int y) {
 
 struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
 
+struct point {int x; int y;};
+
+void draw(struct point points[], unsigned long nPoints) {
+    for (unsigned long i = 0; i < nPoints; i++) procBuff[(points[i].y*w + points[i].x) / 8] |= 1 << ((points[i].y*w + points[i].x) % 8);
+}
+
 int main(int argc, char *argv[]) {
 
-    w = 10, h = 10;
+    w = 24, h = 18;
     int bSize = (int)ceil(((double) w * h) / 8);
 
     displayBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     procBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
-    *procBuff = 2;
-    procBuff[(w+2) / 8] = 1 << ((w+2) % 8);
-    procBuff[w / 4] = 7 << ((2*w) % 8);
+    //Glider
+    struct point defaultState[] = {[0] = {.x = 1, .y = 0},[1] = {.x = 2, .y = 1},[2] = {.x = 0, .y = 2},[3] = {.x = 1, .y = 2},[4] = {.x = 2, .y = 2}};
+    //Pulsar
+
+    draw(defaultState, sizeof(defaultState) / sizeof(defaultState[0]));
 
     enable_raw_mode();
 
@@ -67,7 +75,7 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < w; i++) write(1, "─", 3);
     write(1, "┐\r\n", 5);
-    for (int i = 0; i < (h / 2); i++) {
+    for (int i = 0; i < ceil((double) h / 2); i++) {
         write(1, "│", 3);
         for (int j = 0; j < w; j++) write(1, " ", 1);
         write(1, "│\r\n", 5);
@@ -92,15 +100,17 @@ int main(int argc, char *argv[]) {
                     write(1, " ", 1);
                 }
                 int n = getNeighbors(x, y*2);
-                if ((a & 1 && (n < 2 || n > 3)) || (!(a & 1) && n == 3)) procBuff[i / 8] ^= (1 << (i % 8));
-                n = getNeighbors(x, y*2+1);
-                if ((a & 2 && (n < 2 || n > 3)) || (!(a & 2) && n == 3)) procBuff[(i+w) / 8] ^= (1 << ((i+w) % 8));
+                if ((a & 2 && (n < 2 || n > 3)) || (!(a & 2) && n == 3)) procBuff[i / 8] ^= (1 << (i % 8));
+                if ((y*2+1) < h) {
+                    n = getNeighbors(x, y*2+1);
+                    if ((a & 1 && (n < 2 || n > 3)) || (!(a & 1) && n == 3)) procBuff[(i+w) / 8] ^= (1 << ((i+w) % 8));
+                }
             }
             write(1, "\x1b[1B\x1b[2G", 8);
         }
         write(1, "\x1b[3;2f", 6);
 
-        if(poll(&fds, 1, 100) && (fds.revents & POLLIN)) {
+        if(poll(&fds, 1, 500) && (fds.revents & POLLIN)) {
             //Will need this to be dynamic OR as big as the biggest input I wish to process
             char in;
             read(STDIN_FILENO, &in, 1);
