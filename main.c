@@ -55,8 +55,7 @@ void draw(struct point points[], unsigned long nPoints) {
     for (unsigned long i = 0; i < nPoints; i++) procBuff[(points[i].y*w + points[i].x) / 8] |= 1 << ((points[i].y*w + points[i].x) % 8);
 }
 
-int main(int argc, char *argv[]) {
-
+int main() {
     w = 24, h = 18;
     int bSize = (int)ceil(((double) w * h) / 8);
 
@@ -65,7 +64,6 @@ int main(int argc, char *argv[]) {
 
     //Glider
     struct point defaultState[] = {[0] = {.x = 1, .y = 0},[1] = {.x = 2, .y = 1},[2] = {.x = 0, .y = 2},[3] = {.x = 1, .y = 2},[4] = {.x = 2, .y = 2}};
-    //Pulsar
 
     draw(defaultState, sizeof(defaultState) / sizeof(defaultState[0]));
 
@@ -110,7 +108,7 @@ int main(int argc, char *argv[]) {
         }
         write(1, "\x1b[3;2f", 6);
 
-        if(poll(&fds, 1, 500) && (fds.revents & POLLIN)) {
+        if(poll(&fds, 1, 150) && (fds.revents & POLLIN)) {
             //Will need this to be dynamic OR as big as the biggest input I wish to process
             char in;
             read(STDIN_FILENO, &in, 1);
