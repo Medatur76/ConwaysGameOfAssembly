@@ -56,14 +56,25 @@ void draw(struct point points[], unsigned long nPoints) {
 }
 
 int main() {
-    w = 24, h = 18;
+    w = 40, h = 24;
     int bSize = (int)ceil(((double) w * h) / 8);
 
     displayBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     procBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
     //Glider
-    struct point defaultState[] = {[0] = {.x = 1, .y = 0},[1] = {.x = 2, .y = 1},[2] = {.x = 0, .y = 2},[3] = {.x = 1, .y = 2},[4] = {.x = 2, .y = 2}};
+    struct point defaultState[] = {
+        [0] = {.x = 1, .y = 0},
+        [1] = {.x = 2, .y = 1},
+        [2] = {.x = 0, .y = 2},
+        [3] = {.x = 1, .y = 2},
+        [4] = {.x = 2, .y = 2},
+        [5] = {.x = w-2, .y = 1},
+        [6] = {.x = w-3, .y = 2},
+        [7] = {.x = w-1, .y = 3},
+        [8] = {.x = w-2, .y = 3},
+        [9] = {.x = w-3, .y = 3}
+    };
 
     draw(defaultState, sizeof(defaultState) / sizeof(defaultState[0]));
 
@@ -81,7 +92,6 @@ int main() {
     write(1, "└", 3);
     for (int i = 0; i < w; i++) write(1, "─", 3);
     write(1, "┘\x1b[3;2f", 9);
-
     while (1) {
         memcpy(displayBuff, procBuff, bSize);
         for (int y = 0; y < (h / 2); y++) {
@@ -118,7 +128,7 @@ int main() {
 
     write(1, "\x1b[3J\x1b[2J\x1b[H\x1b[?25h\x1b[?1049l", 25);
 
-    munmap(displayBuff, 13);
-    munmap(procBuff, 13);
+    munmap(displayBuff, bSize);
+    munmap(procBuff, bSize);
     return 0;
 }
