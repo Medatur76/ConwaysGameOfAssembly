@@ -4,6 +4,10 @@ displayBuff:
     .zero 8
 procBuff:
     .zero 8
+orgTerm:
+    .zero 57
+bSize:
+    .zero 8
 .section .text
 .globl _start
 _loop1:
@@ -62,19 +66,18 @@ _loop6c:
     cmp x1, #2
     b.ne _loop6
     ret
-//This bit its AI but I rewrote it cuz its 11 and im tired
-_memcpy:
+_memcpy: //This bit its AI but I rewrote it cuz its 11 and im tired
     adrp x1, procBuff
     ldr x0, [x1, :lo12:procBuff]
     adrp x2, displayBuff
     ldr x1, [x2, :lo12:displayBuff]
-    mov x2, #13
+    adrp x3, bSize
+    add x3, x3, :lo12:bSize
+    ldr x2, [x3]
 _loop8:
     cmp x2, #16
     b.lt _loop9c
-    // Load 16 bytes from src (x0), then increment x0 by 16
     ldr q0, [x0], #16
-    // Store 16 bytes to dst (x1), then increment x1 by 16
     str q0, [x1], #16
     sub x2, x2, #16
     b _loop8
@@ -82,15 +85,66 @@ _loop9c:
     cbnz x2, _loop9
     ret
 _loop9:
-    // Copy remaining individual trailing bytes (1 to 15 bytes)
     ldrb w3, [x0], #1
     strb w3, [x1], #1
     sub x2, x2, #1
     b _loop9c
 _start:
+    mov x8, 0x1D
+    mov x0, xzr
+    mov x1, 0x5401
+    adrp x2, orgTerm
+    add x2, x2, :lo12:orgTerm
+    svc 0
+    sub sp, sp, #64
+    adrp x0, orgTerm
+    add x0, x0, :lo12:orgTerm
+    ldr w1, [x0]
+    mov w2, #-1331
+    and w1, w1, w2
+    str w1, [sp]
+    ldr w1, [x0, #4]
+    and w1, w1, #-2
+    str w1, [sp, #4]
+    ldr w1, [x0, #8]
+    orr w1, w1, #48
+    str w1, [sp, #8]
+    ldr w1, [x0, #12]
+    mov w2, #-32780
+    and w1, w1, w2
+    str w1, [sp, #12]
+    ldrh w1, [x0, #16]
+    strh w1, [sp, #16]
+    add x0, x0, #17
+    ldp q0, q1, [x0]
+    mov w1, #1
+    mov v0.b[6], w1 //AI, should rewrite this
+    mov v0.b[5], wzr
+    str q0, [sp, #17]
+    str q1, [sp, #33]
+    ldr w1, [x0, #32]
+    str w1, [sp, #49]
+    ldr w1, [x0, #36]
+    str w1, [sp, #53]
+    mov x8, 0x1D
+    mov x0, xzr
+    mov x1, 0x5404
+    mov x2, sp
+    svc 0
+    add sp, sp, #64
+    mov x1, w
+    mov x2, h
+    mul x1, x1, x2
+    and x2, x1, #7
+    mov x0, #8
+    udiv x1, x1, x0
+    cmp x2, #0
+    cinc x1, x1, ne
+    adrp x0, bSize
+    add x0, x0, :lo12:bSize
+    str x1, [x0]
     mov x8, 0xDE
     mov x0, 0
-    mov x1, #13
     mov x2, #3
     mov x3, 0x22
     mov x4, #-1
@@ -100,16 +154,25 @@ _start:
     str x0, [x1, :lo12:displayBuff]
     mov x8, 0xDE
     mov x0, 0
-    mov x1, #13
+    adrp x2, bSize
+    add x2, x2, :lo12:bSize
+    ldr x1, [x2]
+    mov x2, #3
     svc 0
     adrp x1, procBuff
     str x0, [x1, :lo12:procBuff]
     mov w1, #2
     strb w1, [x0]
-    mov w1, #16
-    strb w1, [x0, #1]
-    mov w1, #112
-    strb w1, [x0, #2]
+    mov w1, #4
+    strb w1, [x0, #5]
+    mov w1, #7
+    strb w1, [x0, #10]
+    mov w1, #64
+    strb w1, [x0, #9]
+    mov w1, #32
+    strb w1, [x0, #14]
+    mov w1, #224
+    strb w1, [x0, #19]
     mov x8, 0x40
     mov x0, #1
     adr x1, intro
@@ -257,7 +320,6 @@ _b6:
     strb w1, [x0]
 _b7:
     mov x12, #2
-    //Can this be one line?
     mul x12, x12, x7
     add x12, x12, #1
     cmp x12, h
@@ -325,30 +387,40 @@ _exit:
     mov x8, 0xD7
     adrp x1, displayBuff
     ldr x0, [x1, :lo12:displayBuff]
-    mov x1, #13
+    adrp x2, bSize
+    add x2, x2, :lo12:bSize
+    ldr x1, [x2]
     svc 0
     adrp x1, procBuff
     ldr x0, [x1, :lo12:procBuff]
-    mov x1, #13
+    adrp x2, bSize
+    add x2, x2, :lo12:bSize
+    ldr x1, [x2]
+    svc 0
+    mov x8, 0x1D
+    mov x0, xzr
+    mov x1, 0x5404
+    adrp x2, orgTerm
+    add x2, x2, :lo12:orgTerm
     svc 0
     mov x8, 0x5D
     mov x0, xzr
     svc 0
     brk #0
 .section .data
+time:
+    .dword 0
+    .dword 150000000
 intro:
-    .ascii "\x1b[?1049h\x1b[3J\x1b[2J\x1b[H\x1b[?25lKiernan's Game of Assembly\r\n┌"
+    .ascii "\x1b[?1049h\x1b[3J\x1b[2J\x1b[H\x1b[?25lMedatur76's Game of Assembly\r\n┌"
 introLen = . - intro
 outro:
     .ascii "\x1b[3J\x1b[2J\x1b[H\x1b[?25h\x1b[?1049l"
 outroLen = . - outro
 charLib:
     .ascii "─│\r\n┐\r\n└┘\x1b[3;2f █▀▄\x1b[1B\x1b[2G"
-h = 10
-w = 10
+h = 24
+w = 40
 fds:
     .word 0
     .word 1
-time:
-    .dword 0
-    .dword 150000000
