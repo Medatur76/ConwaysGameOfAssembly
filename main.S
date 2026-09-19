@@ -1,128 +1,128 @@
-.intel_syntax noprefix
-.bss
-//.align 8
-forwardBuffer:
+.section .bss
+.align 8
+displayBuff:
     .zero 8
-rearBuffer:
+procBuff:
     .zero 8
-headerBuffer:
-    .zero 8
-.text
-.global _start
-//Default state 10 x 10
+.section .text
+.globl _start
+_loop1:
+    mov x0, 1
+    adr x1, charLib
+    mov x2, 3
+    svc 0
+    subs x6, x6, #1
+    b.ne _loop1
+    ret
 _start:
-    mov rax, 9
-    xor rdi, rdi
-    mov rsi, 13
-    mov rdx, 0x03
-    mov r10, 0x22
-    mov r8, -1
-    xor r9, r9
-    syscall
-    mov qword ptr [forwardBuffer], rax
-
-    mov rax, 9
-    xor rdi, rdi
-    mov rsi, 13
-    mov rdx, 0x03
-    mov r10, 0x22
-    mov r8, -1
-    xor r9, r9
-    syscall
-    mov qword ptr [rearBuffer], rax
-
-    mov rax, 9
-    xor rdi, rdi
-    //Calculate this later
-    mov rsi, 2
-    mov rdx, 0x03
-    mov r10, 0x22
-    mov r8, -1
-    xor r9, r9
-    syscall
-    mov qword ptr [headerBuffer], rax
-
-    mov dword ptr [headerBuffer], 0x2020
-
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, initMessage
-    lea rdx, initMesLen
-    syscall
-
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, headerBuffer
-    mov rdx, 2
-    syscall
-
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, title
-    lea rdx, titleLen
-    syscall
-
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, headerBuffer
-    mov rdx, 2
-    syscall
-
-_loop:
-
-    mov rsi, qword ptr [forwardBuffer]
-    mov rdi, qword ptr [rearBuffer]
-    mov rcx, 13
-    rep movsq
-
-    mov rax, 7
-    lea rdi, fds
-    mov rsi, 1
-    mov rdx, 100
-    syscall
-
-    test rax, rax
-    //js error
-    jz _loop
-
-    xor rax, rax
-    xor rdi, rdi
-    lea rsi, forwardBuffer
-    mov rdx, 1
-    syscall
-
-    mov rax, 11
-    lea rdi, forwardBuffer
-    mov rsi, 13
-    syscall
-
-    mov rax, 11
-    lea rdi, rearBuffer
-    mov rsi, 13
-    syscall
-
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, exitMessage
-    lea rdx, exitMesLen
-    syscall
-
-    mov rax, 0x3c
-    xor rdi, rdi
-    syscall
-
-    ud2
-.data
-initMessage: 
-    .ascii "\x1b[?1049h\x1b[?25l\x1b[3J\x1b[2J\x1b[H"
-.set initMesLen, . - initMessage
-exitMessage:
+    mov x8, 0xDE
+    mov x0, 0
+    mov x1, #13
+    mov x2, #3
+    mov x3, 0x22
+    mov x4, #-1
+    mov x5, 0
+    svc 0
+    adrp x1, displayBuff
+    str x0, [x1, :lo12:displayBuff]
+    mov x8, 0xDE
+    mov x0, 0
+    mov x1, #13
+    svc 0
+    adrp x1, procBuff
+    str x0, [x1, :lo12:procBuff]
+    mov x8, 0x40
+    mov x0, #1
+    adr x1, intro
+    mov x2, introLen
+    svc 0
+    mov x6, w
+    bl _loop1
+    mov x0, #1
+    adr x1, charLib + 8
+    mov x2, #5
+    svc 0
+    mov x7, h
+    mov x6, #2
+    udiv x7, x7, x6
+    mov x6, h
+    mov x0, #1
+    and x6, x6, x0
+    add x7, x7, x6
+_loop2:
+    mov x0, #1
+    adr x1, charLib + 3
+    mov x2, #3
+    svc 0
+    mov x6, w
+_loop3:
+    mov x0, #1
+    adr x1, charLib + 25
+    mov x2, #1
+    svc 0
+    subs x6, x6, #1
+    b.ne _loop3
+    mov x0, #1
+    adr x1, charLib + 3
+    mov x2, #5
+    svc 0
+    subs x7, x7, #1
+    b.ne _loop2
+    mov x0, #1
+    adr x1, charLib + 13
+    mov x2, #3
+    svc 0
+    mov x6, w
+    bl _loop1
+    mov x0, #1
+    adr x1, charLib + 16
+    mov x2, #9
+    svc 0
+_main_loop:
+    ldr x9, time
+    ldr x10, time + 8
+    stp x9, x10, [sp, #-16]!
+    mov x8, 0x49
+    adr x0, fds
+    mov x1, #1
+    mov x2, sp
+    mov x3, 0
+    mov x4, 0
+    svc 0
+    cbz x0, _main_loop
+_exit:
+    mov x8, 0x40
+    mov x0, 1
+    adr x1, outro
+    mov x2, outroLen
+    svc 0
+    mov x8, 0xD7
+    adrp x1, displayBuff
+    ldr x0, [x1, :lo12:displayBuff]
+    mov x1, #13
+    svc 0
+    adrp x1, procBuff
+    ldr x0, [x1, :lo12:procBuff]
+    mov x1, #13
+    svc 0
+    mov x8, 0x5D
+    mov x0, xzr
+    svc 0
+    brk #0
+.section .data
+intro:
+    .ascii "\x1b[?1049h\x1b[3J\x1b[2J\x1b[H\x1b[?25lKiernan's Game of Assembly\r\n┌"
+introLen = . - intro
+outro:
     .ascii "\x1b[3J\x1b[2J\x1b[H\x1b[?25h\x1b[?1049l"
-.set exitMesLen, . - exitMessage
+outroLen = . - outro
+charLib:
+    .ascii "─│\r\n┐\r\n└┘\x1b[3;2f █▀▄\x1b[1B\x1b[2G"
+h = 10
+w = 11
 fds:
-    .int 0
-    .word 0x0001
     .word 0
-title:
-    .ascii "Kiernan's Game of Assembly"
-.set titleLen, . - title
+    .word 1
+time:
+    .dword 0
+    .dword 150000000
