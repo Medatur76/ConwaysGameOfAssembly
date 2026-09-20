@@ -70,7 +70,7 @@ void drawBox() {
     }
     write(1, "└", 3);
     for (int i = 0; i < w; i++) write(1, "─", 3);
-    write(1, "┘\x1b[3;2f", 9);
+    write(1, "┘", 3);
 }
 
 int main() {
@@ -105,11 +105,11 @@ int main() {
     bool paused = true, overwrite = true;
     struct point cursor = {0,0};
 
-    write(1, "\x1b[2;0f", 6);
-
+    write(1, "\x1b[0J\r\n\nUse the arrow keys to move the cursor\r\nPress enter to flip the selected cell\r\nPress space to resume the game\x1b[2;0f", 121);
     while (1) {
         memcpy(displayBuff, procBuff, bSize);
         drawBox();
+        write(1, "\x1b[3;2f", 6);
         if (paused && overwrite) displayBuff[(cursor.y*w + cursor.x) / 8] ^= 1 << ((cursor.y*w + cursor.x) % 8);
         for (int y = 0; y < (h / 2); y++) {
             for (int x = 0; x < w; x++) {
