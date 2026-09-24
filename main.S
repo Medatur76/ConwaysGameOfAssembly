@@ -161,6 +161,18 @@ _start: //Entry point
     svc 0
     adrp x1, procBuff
     str x0, [x1, :lo12:procBuff] //procBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0) - Creates the buffer to process the next tick from the "old state"
+    mov w1, #2 //This bit till line 175 is a hardcoded begining state for the program. Will be updated later
+    strb w1, [x0]
+    mov w1, #4
+    strb w1, [x0, #5]
+    mov w1, #7
+    strb w1, [x0, #10]
+    mov w1, #64
+    strb w1, [x0, #9]
+    mov w1, #32
+    strb w1, [x0, #14]
+    mov w1, #224
+    strb w1, [x0, #19]
     mov x8, 0x40
     mov x0, #1
     adr x1, intro
