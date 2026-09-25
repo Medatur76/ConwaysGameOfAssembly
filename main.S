@@ -4,6 +4,10 @@ displayBuff:
     .zero 8
 procBuff:
     .zero 8
+h:
+    .zero 8
+w:
+    .zero 8
 orgTerm:
     .zero 57
 bSize:
@@ -25,7 +29,8 @@ _loop6: //while (dy < 2)
     add x3, x1, x12 //x3 = dy + y
     cmp x3, #0
     b.lt _loop6c //if (x3 < 0) continue
-    mov x4, h
+    adrp x4, h
+    ldr x4, [x4, :lo12:h]
     sub x4, x4, #1 //x4 = h - 1
     cmp x3, x4
     b.gt _loop6c //if (x3 > x4) continue
@@ -39,11 +44,13 @@ _loop7: //while (dx < 2)
 _loop7c2:
     cmp x4, #0
     b.lt _loop7c //if ((dx + x) < 0) continue
-    mov x13, w
+    adrp x13, w
+    ldr x13, [x13, :lo12:w]
     sub x13, x13, #1 //x13 = w - 1
     cmp x4, x13
     b.gt _loop7c //if ((dx + x) > x13) continue
-    mov x13, w
+    adrp x13, w
+    ldr x13, [x13, :lo12:w]
     madd x14, x3, x13, x4 //x14 = j = (dy + y) * w + (dx + x)
     mov x4, #8
     udiv x4, x14, x4 //x4 = j / 8
@@ -89,7 +96,55 @@ _loop9:
     strb w3, [x1], #1 //*x1++ = w3
     sub x2, x2, #1 //x2--
     b _loop9c
+_atoi: //x1 = atoi(x0) - Simple string to int function. Pretty self explanitory in my opinion so im not gonna comment it :)
+    mov x1, xzr
+    mov x3, #10
+_loop10:
+    mov x2, xzr
+    ldrb w2, [x0], #1
+    cmp x2, #0
+    b.eq _loop10c
+    sub x2, x2, #48
+    madd x1, x1, x3, x2
+    b _loop10
+_loop10c:
+    ret
 _start: //Entry point
+    ldr x0, [sp] //x0 = argc
+    cmp x0, #2
+    b.lt _s3 //if (argc >= 2)
+    b.ne _s2 //if (argc == 2)
+    ldr x0, [sp, #16] //x0 = argv[1]
+    bl _atoi
+    adrp x0, h
+    add x0, x0, :lo12:h
+    str x1, [x0] //h = atoi(argv[1])
+    adrp x0, w
+    add x0, x0, :lo12:w
+    str x1, [x0] //w = atoi(argv[1])
+    b _s4
+_s2: //if (argc >= 3)
+    ldr x0, [sp, #16] //x0 = argv[1]
+    bl _atoi
+    adrp x0, h
+    add x0, x0, :lo12:h
+    str x1, [x0] //h = atoi(argv[1])
+    ldr x0, [sp, #24] //x0 = argv[2]
+    bl _atoi
+    adrp x0, w
+    add x0, x0, :lo12:w
+    str x1, [x0] //w = atoi(argv[2])
+    b _s4
+_s3: //if (argc < 2)
+    adrp x1, h
+    add x1, x1, :lo12:h
+    mov x0, #24
+    str x0, [x1] //h = 24
+    adrp x1, w
+    add x1, x1, :lo12:w
+    mov x0, #40
+    str x0, [x1] //w = 40
+_s4:
     mov x8, 0x1D
     mov x0, xzr
     mov x1, 0x5401
@@ -132,8 +187,10 @@ _start: //Entry point
     mov x2, sp
     svc 0 //ioctl(0, TCSETSF, &raw) - Sets the console to the new configuration
     add sp, sp, #64
-    mov x1, w
-    mov x2, h
+    adrp x1, w
+    ldr x1, [x1, :lo12:w]
+    adrp x2, h
+    ldr x2, [x2, :lo12:h]
     mul x1, x1, x2 //x1 = w * h
     and x2, x1, #7 //x2 = x1 % 8
     mov x0, #8
@@ -178,16 +235,19 @@ _start: //Entry point
     adr x1, intro
     mov x2, introLen
     svc 0 //write(1, &intro, introLen) - Writes out ANSI console setup + header
-    mov x6, w
+    adrp x6, w
+    ldr x6, [x6, :lo12:w]
     bl _loop1
     mov x0, #1
     adr x1, charLib + 8
     mov x2, #5
     svc 0 //write(1, "┐\r\n", 5)
-    mov x7, h
+    adrp x7, h
+    ldr x7, [x7, :lo12:h]
     mov x6, #2
     udiv x7, x7, x6 //x7 = h / 2
-    mov x6, h
+    adrp x6, h
+    ldr x6, [x6, :lo12:h]
     and x6, x6, #1 //x6 = h % 1
     add x7, x7, x6 //x7 += x6
 _loop2: //while (x7) - Given that each character in the console can fix two cells vertically, this loop builds the box to have a terminal height that is half of the number of rows the box can fit
@@ -195,7 +255,8 @@ _loop2: //while (x7) - Given that each character in the console can fix two cell
     adr x1, charLib + 3
     mov x2, #3
     svc 0 //write(1, "│", 3)
-    mov x6, w //x6 = w
+    adrp x6, w
+    ldr x6, [x6, :lo12:w] //x6 = w
 _loop3: //while (x6) - Whitespace for where the actual cells will go
     mov x0, #1
     adr x1, charLib + 25
@@ -213,7 +274,8 @@ _loop3: //while (x6) - Whitespace for where the actual cells will go
     adr x1, charLib + 13
     mov x2, #3
     svc 0 //write(1, "└", 3)
-    mov x6, w
+    adrp x6, w
+    ldr x6, [x6, :lo12:w]
     bl _loop1
     mov x0, #1
     adr x1, charLib + 16
@@ -221,7 +283,8 @@ _loop3: //while (x6) - Whitespace for where the actual cells will go
     svc 0 //write(1, "┘", 3)
 _main_loop: //At this point, all preparations are done for console data that wont change. This label marks the game loop
     bl _memcpy
-    mov x6, h
+    adrp x6, h
+    ldr x6, [x6, :lo12:h]
     mov x7, #2
     udiv x6, x6, x7 // x6 = h / 2
     mov x7, xzr // x7 = y = 0
@@ -230,7 +293,8 @@ _loop4: //while (y < x6) - The ASM version of a for loop that goes through every
 _loop5: //while (x < w) - Another for loop that goes through every column
     mov x11, #2
     mul x10, x7, x11 //x10 = y * 2
-    mov x11, w
+    adrp x11, w
+    ldr x11, [x11, :lo12:w]
     madd x10, x10, x11, x9 //x10 = i = (x10 * w) + x - i is the position in the buffer (if you pretend the buffers data is one bit wide) of the upper cell
     adrp x1, displayBuff
     ldr x0, [x1, :lo12:displayBuff] //x0 = displayBuff
@@ -247,7 +311,8 @@ _loop5: //while (x < w) - Another for loop that goes through every column
     csel x11, x2, xzr, ne //x11 = a = x0 ? 2 : 0 - If the upper cell is alive, initialize a with 2 (aka 1 << 1), if not start with 0
     adrp x1, displayBuff
     ldr x0, [x1, :lo12:displayBuff] //x0 = displayBuff
-    mov x12, w
+    adrp x12, w
+    ldr x12, [x12, :lo12:w]
     add x12, x12, x10 //x10 = i + w - This is the bit position in the buffer of the lower cell. This next bit is the exact same as above just for the lower cell
     mov x1, #8
     udiv x1, x12, x1 //x1 = (i + w) / 8
@@ -321,9 +386,12 @@ _b7: //_b7 to _b9 are the exact same as _b4 to _b6, just for the lower cell
     mov x12, #2
     mul x12, x12, x7 //x12 = y * 2
     add x12, x12, #1 //x12 = y * 2 + 1
-    cmp x12, h
+    adrp x1, h
+    ldr x1, [x1, :lo12:h]
+    cmp x12, x1
     b.ge _b10 //if (x12 < h)
-    mov x1, w
+    adrp x1, w
+    ldr x1, [x1, :lo12:w]
     add x10, x10, x1 //x10 = i + w
     bl _getNeighbors //x0 = n = getNeighbors(x9, x12)
     and x12, x11, #1 //x12 = a & 1
@@ -351,7 +419,9 @@ _b9:
     strb w1, [x0] //*x0 = w1
 _b10:
     add x9, x9, #1 //x9++
-    cmp x9, w
+    adrp x1, w
+    ldr x1, [x1, :lo12:w]
+    cmp x9, x1
     b.lt _loop5 //if (x9 == w) break - The condition check for the inner for loop (interating though all the x values)
     mov x8, 0x40
     mov x0, #1
@@ -418,8 +488,6 @@ outro:
 outroLen = . - outro
 charLib:
     .ascii "─│\r\n┐\r\n└┘\x1b[3;2f █▀▄\x1b[1B\x1b[2G"
-h = 24
-w = 40
 fds: //[{fd=0, events=POLLIN}] - Technically the "list" of fds for ppoll
     .word 0
     .word 1
