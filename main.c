@@ -37,6 +37,10 @@ void enable_raw_mode(void) {
 unsigned char *displayBuff, *procBuff;
 int w, h;
 
+struct pollfd fds = {0, 1, 0};
+
+struct point {int x; int y;};
+
 int getNeighbors(int x, int y) {
     int n = 0;
     for (int dy = -1; dy < 2; dy++) {
@@ -51,30 +55,19 @@ int getNeighbors(int x, int y) {
     return n;
 }
 
-struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
-
-struct point {int x; int y;};
-
 void drawPoints(struct point points[], unsigned long nPoints) {
     for (unsigned long i = 0; i < nPoints; i++) procBuff[(points[i].y*w + points[i].x) / 8] |= 1 << ((points[i].y*w + points[i].x) % 8);
 }
 
-void drawBox() {
-    write(1, "┌", 3);
-    for (int i = 0; i < w; i++) write(1, "─", 3);
-    write(1, "┐\r\n", 5);
-    for (int i = 0; i < ceil((double) h / 2); i++) {
-        write(1, "│", 3);
-        for (int j = 0; j < w; j++) write(1, " ", 1);
-        write(1, "│\r\n", 5);
+int main(int argc, char *argv[]) {
+    if (argc == 2) {
+        w = h = atoi(argv[1]);
+    } else if (argc >= 3) {
+        w = atoi(argv[1]);
+        h = atoi(argv[2]);
+    } else {
+        w = 40, h = 24;
     }
-    write(1, "└", 3);
-    for (int i = 0; i < w; i++) write(1, "─", 3);
-    write(1, "┘", 3);
-}
-
-int main() {
-    w = 40, h = 24;
     int bSize = (int)ceil(((double) w * h) / 8);
 
     displayBuff = mmap(NULL, bSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
@@ -100,53 +93,60 @@ int main() {
 
     write(1, "\x1b[?1049h\x1b[3J\x1b[2J\x1b[H\x1b[?25lMedatur76's Game of C\r\n", 48);
 
-    drawBox();
+    write(1, "┌", 3);
+    for (int i = 0; i < w; i++) write(1, "─", 3);
+    write(1, "┐\r\n", 5);
+    for (int i = 0; i < ceil((double) h / 2); i++) {
+        write(1, "│", 3);
+        for (int j = 0; j < w; j++) write(1, " ", 1);
+        write(1, "│\r\n", 5);
+    }
+    write(1, "└", 3);
+    for (int i = 0; i < w; i++) write(1, "─", 3);
+    write(1, "┘", 3);
+    write(1, "\x1b[2B\r\x1b[JUse the arrow keys to move the cursor\r\nPress enter to flip the selected cell\r\nPress space to resume the game", 116);
 
-    bool paused = true, overwrite = true;
+    bool paused = true;
     struct point cursor = {0,0};
+    memcpy(displayBuff, procBuff, bSize);
 
-    write(1, "\x1b[0J\r\n\nUse the arrow keys to move the cursor\r\nPress enter to flip the selected cell\r\nPress space to resume the game\x1b[2;0f", 121);
     while (1) {
-        memcpy(displayBuff, procBuff, bSize);
-        drawBox();
         write(1, "\x1b[3;2f", 6);
-        if (paused && overwrite) displayBuff[(cursor.y*w + cursor.x) / 8] ^= 1 << ((cursor.y*w + cursor.x) % 8);
-        for (int y = 0; y < (h / 2); y++) {
+        for (int y = 0; y < ceil((double) h / 2); y++) {
             for (int x = 0; x < w; x++) {
-                int i = y*2*w+x;
-                int a = ((displayBuff[i / 8] & (1 << (i % 8))) ? 2 : 0) + ((displayBuff[(i + w) / 8] & (1 << ((i + w) % 8))) ? 1 : 0);
+                int i = y * 2 * w + x;
+                //Check if i + w is to big
+                int a = ((displayBuff[i / 8] & 1 << (i % 8)) ? 2 : 0) + ((displayBuff[(i + w) / 8] & 1 << ((i + w) % 8)) ? 1 : 0);
                 if (a == 3) {
                     write(1, "█", 3);
                 } else if (a == 2) {
                     write(1, "▀", 3);
-                } else if (a) {
+                } else if (a == 1) {
                     write(1, "▄", 3);
-                } else {
-                    write(1, " ", 1);
-                }
+                } else write(1, " ", 1);
                 if (paused) continue;
-                int n = getNeighbors(x, y*2);
-                if ((a & 2 && (n < 2 || n > 3)) || (!(a & 2) && n == 3)) procBuff[i / 8] ^= (1 << (i % 8));
-                if ((y*2+1) < h) {
-                    n = getNeighbors(x, y*2+1);
-                    if ((a & 1 && (n < 2 || n > 3)) || (!(a & 1) && n == 3)) procBuff[(i+w) / 8] ^= (1 << ((i+w) % 8));
-                }
+                int n = getNeighbors(x, y * 2);
+                if (((a & 2) && (n < 2 || n > 3)) || (!(a & 2) && n == 3)) procBuff[i / 8] ^= 1 << (i % 8);
+                n = getNeighbors(x, y * 2 + 1);
+                if (((a & 1) && (n < 2 || n > 3)) || (!(a & 1) && n == 3)) procBuff[(i + w) / 8] ^= 1 << ((i + w) % 8);
             }
             write(1, "\x1b[1B\x1b[2G", 8);
         }
 
-        if (paused || (poll(&fds, 1, 150) && (fds.revents & POLLIN))) {
-            //Will need this to be dynamic OR as big as the biggest input I wish to process
+        memcpy(displayBuff, procBuff, bSize);
+        if (paused || poll(&fds, 1, 150) && (fds.revents & 1)) {
             char in;
-            read(STDIN_FILENO, &in, 1);
-            overwrite = true;
-            if (in == 0x20) {
+            if (read(0, &in, 1) != 1) break;
+            else if (in == 0x0A || in == 0x0D) {
+                if (!paused) break;
+                displayBuff[(cursor.y * w + cursor.x) / 8] ^= 1 << ((cursor.y * w + cursor.x) % 8);
+                procBuff[(cursor.y * w + cursor.x) / 8] ^= 1 << ((cursor.y * w + cursor.x) % 8);
+            } else if (in == 0x20) {
+                write(1, "\x1b[2B\r\x1b[J", 8);
                 if (paused ^= 1) {
-                    write(1, "\x1b[0J\r\n\nUse the arrow keys to move the cursor\r\nPress enter to flip the selected cell\r\nPress space to resume the game", 115);
-                } else {
-                    write(1, "\x1b[0J\r\n\nPress space to pause the game\r\nPress enter to exit", 57);
-                }
-            } else if (in == 0x1B && read(STDIN_FILENO, &in, 1) && in == 0x5B && read(STDIN_FILENO, &in, 1)) {
+                    write(1, "Use the arrow keys to move the cursor\r\nPress enter to flip the selected cell\r\nPress space to resume the game", 108);
+                } else write(1, "Press space to pause the game\r\nPress enter to exit", 50);
+            } else if (paused && in == 0x1B && read(STDIN_FILENO, &in, 1) && in == 0x5B && read(STDIN_FILENO, &in, 1)) {
                 switch (in) {
                     case 0x41:
                         cursor.y = max(cursor.y - 1, 0);
@@ -163,20 +163,16 @@ int main() {
                     default:
                         break;
                 }
-            } else if (in == 0x0A || in == 0x0D) {
-                if (paused) {
-                    procBuff[(cursor.y*w + cursor.x) / 8] ^= 1 << ((cursor.y*w + cursor.x) % 8);
-                    overwrite = false;
-                } else break;
+                //Assumes that this is an arrow key input
+                displayBuff[(cursor.y * w + cursor.x) / 8] ^= 1 << ((cursor.y * w + cursor.x) % 8);
             }
         }
-
-        write(1, "\x1b[2;0f", 6);
     }
 
     write(1, "\x1b[3J\x1b[2J\x1b[H\x1b[?25h\x1b[?1049l", 25);
 
     munmap(displayBuff, bSize);
     munmap(procBuff, bSize);
+
     return 0;
 }
